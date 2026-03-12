@@ -19,7 +19,6 @@ export default function AppRouter() {
         <Route path="/employees/:id" element={<EmployeeDetailsPage />} />
         <Route path="/employees/create" element={<CreateEmployeePage />} />
         <Route path="/employees/edit/:id" element={<EditEmployeePage />} />
-
         <Route path="/change-password" element={<ChangePasswordPage />} />
       </Routes>
     </BrowserRouter>
