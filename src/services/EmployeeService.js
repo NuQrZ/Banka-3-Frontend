@@ -37,3 +37,27 @@ export async function getEmployees() {
   return mockEmployees;
 
 }
+
+export async function getEmployeeById(employeeId) {
+
+  const found = mockEmployees.find((e) => e.id === employeeId);
+  if (!found) throw new Error("Zaposleni nije pronađen.");
+
+  // Map snake_case mock fields → camelCase shape the details page expects
+  return {
+    id: found.id,
+    firstName: found.first_name,
+    lastName: found.last_name,
+    birthDate: found.birth_date,
+    gender: found.gender,
+    email: found.email,
+    phone: found.phone_number,
+    address: found.address,
+    username: found.username,
+    position: found.position,
+    department: found.department,
+    role: found.permissions?.includes("ADMIN") ? "ADMIN" : "EMPLOYEE",
+    active: found.active,
+    jmbg: found.jmbg ?? "",
+  };
+}
