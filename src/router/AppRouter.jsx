@@ -1,11 +1,11 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import LoginPage from "../pages/LoginPage";
-import EmployeesPage from "../pages/EmployeesPage";
-import EmployeeDetailsPage from "../pages/EmployeeDetailsPage";
-import CreateEmployeePage from "../pages/CreateEmployeePage";
-import EditEmployeePage from "../pages/EditEmployeePage";
-import ChangePasswordPage from "../pages/ChangePasswordPage";
+import LoginPage from "../pages/LoginPage.jsx";
+import EmployeesPage from "../pages/EmployeesPage.jsx";
+import EmployeeDetailsPage from "../pages/EmployeeDetailsPage.jsx";
+import CreateEmployeePage from "../pages/CreateEmployeePage.jsx";
+import EditEmployeePage from "../pages/EditEmployeePage.jsx";
+import ChangePasswordPage from "../pages/ChangePasswordPage.jsx";
 
 export default function AppRouter() {
   return (
