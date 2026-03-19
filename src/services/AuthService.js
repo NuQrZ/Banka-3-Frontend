@@ -1,17 +1,42 @@
 import api from "./api.js";
 
 export const login = async (email, password) => {
-  const response = await api.post("/auth/login", { email, password });
+  const response = await api.post("/login", { email, password });
+  return {
+    accessToken: response.data.access_token,
+    refreshToken: response.data.refresh_token,
+    userId: response.data.user_id,
+  };
+};
+
+export const logout = async () => {
+  await api.post("/logout");
+};
+
+export const refreshToken = async (refreshToken) => {
+  const response = await api.post("/token/refresh", {
+    refresh_token: refreshToken,
+  });
   return {
     accessToken: response.data.access_token,
     refreshToken: response.data.refresh_token,
   };
 };
 
-export const requestPasswordReset = (email) => {
-  return api.post("/password-reset/request", { email });
+export const requestPasswordReset = async (email) => {
+  const response = await api.post("/password-reset/request", { email });
+  return response.data;
 };
 
-export const confirmPasswordReset = (data) => {
-  return api.post("/password-reset/confirm", data);
+export const confirmPasswordReset = async (token, newPassword) => {
+  await api.post("/password-reset/confirm", {
+    token,
+    password: newPassword,
+  });
 };
+
+export const getCurrentUserId = () => {
+  return localStorage.getItem("userId");
+};
+
+

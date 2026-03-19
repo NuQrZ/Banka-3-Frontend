@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams  } from "react-router-dom";
 import { validatePasswordStrength } from "../utils/validators";
 import { confirmPasswordReset } from "../services/AuthService";
 import "./ChangePasswordPage.css";
