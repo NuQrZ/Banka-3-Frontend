@@ -9,11 +9,9 @@ export const login = async (email, password) => {
 };
 
 export const requestPasswordReset = (email) => {
-  // TODO: Backend nema ovaj endpoint jos — ostaje mock
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      console.log("Mock: password reset request for:", email);
-      resolve({ message: "Email za reset lozinke je poslat" });
-    }, 500);
-  });
+  return api.post("/password-reset/request", { email });
+};
+
+export const confirmPasswordReset = (data) => {
+  return api.post("/password-reset/confirm", data);
 };

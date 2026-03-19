@@ -9,6 +9,8 @@ import ChangePasswordPage from "../pages/ChangePasswordPage.jsx";
 import ProtectedRoute from "./ProtectedRoute.jsx";
 import BusinessDetailsPage from "../pages/BusinessDetailsPage.jsx";
 import CreateBusinessAccountPage from "../pages/CreateBusinessAccountPage";
+import ForgotPasswordPage from "../pages/ForgotPasswordPage.jsx";
+import EnterTokenPage from "../pages/EnterTokenPage.jsx";
 
 export default function AppRouter() {
   return (
@@ -17,6 +19,10 @@ export default function AppRouter() {
         <Route path="/" element={<Navigate to="/login" />} />
 
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/enter-token" element={<EnterTokenPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
+
 
         <Route path="/employees" element={<ProtectedRoute><EmployeesPage /></ProtectedRoute>} />
         <Route path="/employees/create" element={<ProtectedRoute><CreateEmployeePage /></ProtectedRoute>} />
@@ -26,6 +32,7 @@ export default function AppRouter() {
         <Route path="/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
         <Route path="/accounts/business/:id" element={<ProtectedRoute><BusinessDetailsPage /></ProtectedRoute>}/>
         <Route path="/create-business" element={<ProtectedRoute><CreateBusinessAccountPage /></ProtectedRoute>}/>
+
       </Routes>
     </BrowserRouter>
   );
