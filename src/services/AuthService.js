@@ -5,6 +5,7 @@ export const login = async (email, password) => {
   return {
     accessToken: response.data.access_token,
     refreshToken: response.data.refresh_token,
+    userId: response.data.user_id,
   };
 };
 
@@ -33,3 +34,9 @@ export const confirmPasswordReset = async (token, newPassword) => {
     password: newPassword,
   });
 };
+
+export const getCurrentUserId = () => {
+  return localStorage.getItem("userId");
+};
+
+

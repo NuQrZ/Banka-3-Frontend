@@ -27,6 +27,7 @@ export default function LoginPage() {
 
       localStorage.setItem("accessToken", data.accessToken);
       localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("userId", data.userId);
 
       setMessage("Uspešno logovanje");
       navigate("/employees");
@@ -46,8 +47,8 @@ export default function LoginPage() {
     }
   };
 
-  const handleForgotPassword = async () => {
-      navigate("/change-password");
+  const handleForgotPassword = () => {
+      navigate("/forgot-password");
   };
 
   return (
