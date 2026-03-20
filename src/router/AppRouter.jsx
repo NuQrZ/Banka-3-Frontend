@@ -36,6 +36,7 @@ export default function AppRouter() {
 
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/enter-token" element={<EnterTokenPage />} />
+        <Route path="/reset-password" element={<ChangePasswordPage />} />
         <Route path="/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
 
         <Route path="/dashboard" element={<ProtectedRoute requiredRole="client"><ClientDashboardPage /></ProtectedRoute>} />

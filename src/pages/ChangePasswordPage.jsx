@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation, useParams  } from "react-router-dom";
+import { useNavigate, useLocation, useParams, useSearchParams  } from "react-router-dom";
 import { validatePasswordStrength } from "../utils/validators";
 import { confirmPasswordReset } from "../services/AuthService";
 import "./ChangePasswordPage.css";
@@ -10,14 +10,18 @@ export default function ChangePasswordPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
 
-  const { token } = location.state || {};
+  // Token prioritet: URL query param > location.state
+  const token = searchParams.get("token") || (location.state && location.state.token);
 
    // zaštita ako neko direktno uđe na stranicu
    if (!token) {
      navigate("/login");
     return null;
    }
+
+  const isAdminFlow = !!id;
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -47,10 +51,7 @@ export default function ChangePasswordPage() {
     try {
       setSubmitting(true);
 
-      await confirmPasswordReset({
-        token,
-        password: newPassword,
-      });
+      await confirmPasswordReset(token, newPassword);
 
       setSuccessMessage("Lozinka uspešno promenjena.");
       setNewPassword("");
@@ -74,8 +75,8 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="page-bg">
-      <img src="/bank-logo.png" alt="logo" className="bank-logo" />
-      <MenuDropdown />
+      {isAdminFlow && <img src="/bank-logo.png" alt="logo" className="bank-logo" />}
+      {isAdminFlow && <MenuDropdown />}
 
       <div className="cp-page">
         <div className="cp-card">
