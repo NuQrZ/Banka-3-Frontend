@@ -35,29 +35,57 @@ export default function MyFundsTab() {
   const [modalError, setModalError] = useState("");
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
+
   const triggerRef = useRef(null);
   const modalInputRef = useRef(null);
   const modalRef = useRef(null);
   const mountedRef = useRef(true);
 
+  const permissionsRaw =
+    localStorage.getItem("permissions") ||
+    sessionStorage.getItem("permissions") ||
+    "[]";
+
+  let permissions = [];
+
+  try {
+    permissions = JSON.parse(permissionsRaw);
+  } catch {
+    permissions = [];
+  }
+
+  const isSupervisor =
+    permissions.includes("admin") ||
+    permissions.includes("supervisor") ||
+    permissions.includes("employee");
+
   useEffect(() => {
     mountedRef.current = true;
+
     let cancelled = false;
+
     (async () => {
       try {
         const [fundsData, accs] = await Promise.all([
           listMyFunds(),
           getAccounts().catch(() => []),
         ]);
+
         if (cancelled) return;
+
         setFunds(Array.isArray(fundsData) ? fundsData : []);
         setAccounts(Array.isArray(accs) ? accs : []);
       } catch (e) {
-        if (!cancelled) setError(e.message || "Greška pri učitavanju fondova.");
+        if (!cancelled) {
+          setError(e.message || "Greška pri učitavanju fondova.");
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
+
     return () => {
       cancelled = true;
       mountedRef.current = false;
@@ -66,26 +94,35 @@ export default function MyFundsTab() {
 
   useEffect(() => {
     if (!modal) return undefined;
+
     modalInputRef.current?.focus();
 
     function onKey(e) {
       if (e.key === "Escape") {
         e.stopPropagation();
+
         setModal(null);
         setModalError("");
+
         if (triggerRef.current) {
           triggerRef.current.focus?.();
           triggerRef.current = null;
         }
+
         return;
       }
+
       if (e.key !== "Tab" || !modalRef.current) return;
+
       const focusable = modalRef.current.querySelectorAll(
         'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
       );
+
       if (focusable.length === 0) return;
+
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
+
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
@@ -94,7 +131,9 @@ export default function MyFundsTab() {
         first.focus();
       }
     }
+
     document.addEventListener("keydown", onKey);
+
     return () => document.removeEventListener("keydown", onKey);
   }, [modal]);
 
@@ -107,6 +146,7 @@ export default function MyFundsTab() {
   function closeModal() {
     setModal(null);
     setModalError("");
+
     if (triggerRef.current) {
       triggerRef.current.focus?.();
       triggerRef.current = null;
@@ -116,26 +156,41 @@ export default function MyFundsTab() {
   async function refresh() {
     try {
       const data = await listMyFunds();
+
       if (!mountedRef.current) return;
+
       setFunds(Array.isArray(data) ? data : []);
     } catch (e) {
       if (!mountedRef.current) return;
+
       setActionError(e.message || "Osvežavanje nije uspelo.");
     }
   }
 
   async function handleConfirm() {
     if (!modal) return;
-    const fn = modal.mode === "deposit" ? depositToFund : withdrawFromFund;
+
+    const fn =
+      modal.mode === "deposit"
+        ? depositToFund
+        : withdrawFromFund;
+
     setModalError("");
     setSubmitting(true);
+
     try {
       await fn(modal.fund.id, modal.amount, modal.account);
+
       const successWord =
-        modal.mode === "deposit" ? "Uplata izvršena." : "Povlačenje izvršeno.";
+        modal.mode === "deposit"
+          ? "Uplata izvršena."
+          : "Povlačenje izvršeno.";
+
       setActionMsg(successWord);
       setActionError("");
+
       closeModal();
+
       await refresh();
     } catch (e) {
       setModalError(
@@ -149,8 +204,13 @@ export default function MyFundsTab() {
     }
   }
 
-  if (loading) return <div className="pf-loading">Učitavanje fondova…</div>;
-  if (error) return <div className="pf-error">{error}</div>;
+  if (loading) {
+    return <div className="pf-loading">Učitavanje fondova…</div>;
+  }
+
+  if (error) {
+    return <div className="pf-error">{error}</div>;
+  }
 
   return (
     <div className="pf-funds-tab">
@@ -163,6 +223,7 @@ export default function MyFundsTab() {
           {actionMsg}
         </div>
       )}
+
       {actionError && (
         <div
           className="pf-banner pf-banner--error"
@@ -173,79 +234,174 @@ export default function MyFundsTab() {
         </div>
       )}
 
-      <div className="portfolio-table-wrapper">
-        <table className="portfolio-table pf-table pf-funds-table">
-          <thead>
-            <tr>
-              <th>Fond</th>
-              <th>Menadžer</th>
-              <th>Udeo</th>
-              <th>Vrednost</th>
-              <th aria-label="Akcije"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {funds.length === 0 && (
+      {isSupervisor ? (
+        <div className="portfolio-table-wrapper">
+          <table className="portfolio-table pf-table pf-funds-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="pf-empty">
-                  Nemate udeo ni u jednom fondu.
-                </td>
+                <th>Fond</th>
+                <th>Menadžer</th>
+                <th>Ukupna vrednost fonda</th>
+                <th>Likvidnost</th>
               </tr>
-            )}
-            {funds.map((f) => (
-              <tr key={f.id}>
-                <td className="pf-fund-name">{f.name}</td>
-                <td>{f.manager || "—"}</td>
-                <td>
-                  <div className="pf-fund-share">
-                    <div
-                      className="pf-fund-share-bar"
-                      aria-hidden="true"
-                    >
-                      <span
-                        className="pf-fund-share-bar-fill"
-                        style={{
-                          width: `${Math.min(100, Math.max(0, Number(f.share_pct) || 0))}%`,
-                        }}
-                      />
-                    </div>
-                    <span className="pf-fund-share-value">
-                      {fmtPct(f.share_pct)}
-                    </span>
-                  </div>
-                </td>
-                <td>{fmtMoneyMinor(f.value_minor, f.currency)}</td>
-                <td>
-                  <div className="pf-fund-actions">
-                    <button
-                      type="button"
-                      className="sell-btn pf-deposit-btn"
-                      onClick={(e) => openModal("deposit", f, e.currentTarget)}
-                    >
-                      Uplata
-                    </button>
-                    <button
-                      type="button"
-                      className="sell-btn pf-withdraw-btn"
-                      onClick={(e) => openModal("withdraw", f, e.currentTarget)}
-                      disabled={!f.value_minor}
-                      title={
-                        !f.value_minor
-                          ? "Nemate sredstava za povlačenje"
-                          : "Povuci sredstva iz fonda"
-                      }
-                    >
-                      Povlačenje
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
 
-      {modal && (
+            <tbody>
+              {funds.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="pf-empty">
+                    Nema fondova za prikaz.
+                  </td>
+                </tr>
+              )}
+
+              {funds.map((f) => (
+                <tr key={f.id}>
+                  <td className="pf-fund-name">
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                      }}
+                    >
+                      <span>{f.name}</span>
+
+                      <span
+                        style={{
+                          fontSize: "12px",
+                          color: "#94a3b8",
+                          fontWeight: 400,
+                        }}
+                      >
+                        Fond pod upravljanjem supervizora
+                      </span>
+                    </div>
+                  </td>
+
+                  <td>{f.manager || "—"}</td>
+
+                  <td>
+                    {fmtMoneyMinor(
+                      f.nav_minor,
+                      f.currency
+                    )}
+                  </td>
+
+                  <td>
+                    {fmtMoneyMinor(
+                      f.value_minor,
+                      f.currency
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="portfolio-table-wrapper">
+          <table className="portfolio-table pf-table pf-funds-table">
+            <thead>
+              <tr>
+                <th>Fond</th>
+                <th>Menadžer</th>
+                <th>Udeo</th>
+                <th>Vrednost</th>
+                <th aria-label="Akcije"></th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {funds.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="pf-empty">
+                    Nemate udeo ni u jednom fondu.
+                  </td>
+                </tr>
+              )}
+
+              {funds.map((f) => (
+                <tr key={f.id}>
+                  <td className="pf-fund-name">
+                    {f.name}
+                  </td>
+
+                  <td>{f.manager || "—"}</td>
+
+                  <td>
+                    <div className="pf-fund-share">
+                      <div
+                        className="pf-fund-share-bar"
+                        aria-hidden="true"
+                      >
+                        <span
+                          className="pf-fund-share-bar-fill"
+                          style={{
+                            width: `${Math.min(
+                              100,
+                              Math.max(
+                                0,
+                                Number(f.share_pct) || 0
+                              )
+                            )}%`,
+                          }}
+                        />
+                      </div>
+
+                      <span className="pf-fund-share-value">
+                        {fmtPct(f.share_pct)}
+                      </span>
+                    </div>
+                  </td>
+
+                  <td>
+                    {fmtMoneyMinor(
+                      f.value_minor,
+                      f.currency
+                    )}
+                  </td>
+
+                  <td>
+                    <div className="pf-fund-actions">
+                      <button
+                        type="button"
+                        className="sell-btn pf-deposit-btn"
+                        onClick={(e) =>
+                          openModal(
+                            "deposit",
+                            f,
+                            e.currentTarget
+                          )
+                        }
+                      >
+                        Uplata
+                      </button>
+
+                      <button
+                        type="button"
+                        className="sell-btn pf-withdraw-btn"
+                        onClick={(e) =>
+                          openModal(
+                            "withdraw",
+                            f,
+                            e.currentTarget
+                          )
+                        }
+                        disabled={!f.value_minor}
+                      >
+                        Povlačenje
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modal && !isSupervisor && (
         <div
           className="pf-overlay"
           onClick={closeModal}
@@ -256,59 +412,66 @@ export default function MyFundsTab() {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="pf-fund-modal-title"
-            aria-describedby="pf-fund-modal-hint"
             ref={modalRef}
           >
-            <h2 id="pf-fund-modal-title">
-              {modal.mode === "deposit" ? "Uplata u" : "Povlačenje iz"}{" "}
+            <h2>
+              {modal.mode === "deposit"
+                ? "Uplata u"
+                : "Povlačenje iz"}{" "}
               {modal.fund.name}
             </h2>
-            <p id="pf-fund-modal-hint" className="pf-modal-hint">
-              {modal.mode === "deposit"
-                ? "Sredstva sa izabranog računa će biti uplaćena u fond."
-                : "Sredstva će biti povučena iz fonda na izabrani račun."}
-            </p>
 
-            <label className="pf-modal-label" htmlFor="pf-fund-account">
+            <label className="pf-modal-label">
               Račun
             </label>
+
             <select
-              id="pf-fund-account"
               className="pf-modal-input"
               value={modal.account}
               onChange={(e) =>
-                setModal({ ...modal, account: e.target.value })
+                setModal({
+                  ...modal,
+                  account: e.target.value,
+                })
               }
             >
-              <option value="">— Izaberite račun —</option>
+              <option value="">
+                — Izaberite račun —
+              </option>
+
               {accounts.map((a) => (
-                <option key={a.account_number} value={a.account_number}>
-                  {a.account_number} · {a.currency || "RSD"}
+                <option
+                  key={a.account_number}
+                  value={a.account_number}
+                >
+                  {a.account_number} ·{" "}
+                  {a.currency || "RSD"}
                 </option>
               ))}
             </select>
 
-            <label className="pf-modal-label" htmlFor="pf-fund-amount">
+            <label className="pf-modal-label">
               Iznos ({modal.fund.currency || "RSD"})
             </label>
+
             <input
-              id="pf-fund-amount"
               ref={modalInputRef}
               type="number"
               min="0"
               step="0.01"
               value={modal.amount}
-              onChange={(e) => setModal({ ...modal, amount: e.target.value })}
+              onChange={(e) =>
+                setModal({
+                  ...modal,
+                  amount: e.target.value,
+                })
+              }
               className="pf-modal-input"
               placeholder="0.00"
             />
 
             {modalError && (
-              <div
-                className="pf-banner pf-banner--error pf-modal-banner"
-                role="alert"
-              >
+              <div className="pf-banner pf-banner--error pf-modal-banner">
                 {modalError}
               </div>
             )}
@@ -322,11 +485,16 @@ export default function MyFundsTab() {
               >
                 Otkaži
               </button>
+
               <button
                 type="button"
                 className="pf-btn-primary"
                 onClick={handleConfirm}
-                disabled={submitting || !modal.amount || !modal.account}
+                disabled={
+                  submitting ||
+                  !modal.amount ||
+                  !modal.account
+                }
               >
                 {submitting
                   ? "Slanje…"

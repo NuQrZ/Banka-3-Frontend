@@ -115,8 +115,7 @@ export default function AppRouter() {
           <Route path="/employee-loans" element={<ProtectedRoute requiredRole="employee"><EmployeeLoansPage /></ProtectedRoute>} />
           <Route path="/employee-loans-list" element={<ProtectedRoute requiredRole="employee"><EmployeeLoansListPage /></ProtectedRoute>} />
           <Route path="/tax" element={<ProtectedRoute requiredRole="employee" requiredPermission="supervisor"><TaxDashboardPage /></ProtectedRoute>} />
-          <Route path="/investment-funds/:id" element={<ProtectedRoute><InvestmentFundDetailPage /></ProtectedRoute>} />
-          <Route path="/fondovi" element={<ProtectedRoute requiredRole="client"><FondoviPage /></ProtectedRoute>} />
+          <Route path="/fondovi" element={<ProtectedRoute><FondoviPage /></ProtectedRoute>} />
           <Route path="/investment-funds/create" element={<ProtectedRoute requiredRole="employee" requiredPermission="supervisor"><CreateInvestmentFundPage /></ProtectedRoute>} />
         </Routes>
       </BrowserRouter>
