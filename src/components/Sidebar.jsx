@@ -97,6 +97,7 @@ export default function MenuDropdown() {
                         { label: "Hartije od vrednosti", path: "/securities" },
                         { label: "Moj portfolio", path: "/portfolio" },
                         { label: "Opcioni ugovori", path: "/option-contracts" },
+                        { label: "Spoljni OTC pregovori", path: "/otc/threads" },
                         { label: "Moji nalozi", path: "/orders/my" },
                     ],
                 }
@@ -136,6 +137,7 @@ export default function MenuDropdown() {
                 { label: "Hartije od vrednosti", path: "/securities" },
                 { label: "Moj portfolio", path: "/portfolio" },
                 { label: "Opcioni ugovori", path: "/option-contracts" },
+                { label: "Spoljni OTC pregovori", path: "/otc/threads" },
                 { label: "Moji nalozi", path: "/orders/my" },
             ];
             sections.push({

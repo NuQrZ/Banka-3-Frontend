@@ -1,102 +1,137 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Sidebar from "../components/Sidebar.jsx";
-import { listActiveOffers, acceptOffer, rejectOffer, counterOffer } from "../services/OtcService.js";
-import { formatCurrency } from "../utils/loanCalculations.js";
+import OTCTradingModal from "../components/otc/OTCTradingModal.jsx";
+import { getAccounts } from "../services/AccountService.js";
+import {
+    createExternalOtcOffer,
+    listExternalPublicHoldings,
+} from "../services/OtcService.js";
 import "./OtcOffersPage.css";
 
-function fmt(minor, currency = "RSD") {
-    return formatCurrency((Number(minor) || 0) / 100, currency);
+function fmt(amount, currency = "USD") {
+    const value = Number(amount || 0);
+    if (!Number.isFinite(value)) return "—";
+    return new Intl.NumberFormat("sr-RS", {
+        style: "currency",
+        currency: currency || "USD",
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(value);
 }
 
-function fmtDate(unix) {
-    if (!unix) return "—";
-    return new Date(unix * 1000).toLocaleString("sr-RS");
+function accountCurrency(account) {
+    return account?.currency || account?.currency_code || "USD";
 }
 
-function statusLabel(status) {
-    switch (status) {
-        case "pending": return "Na čekanju";
-        case "accepted": return "Prihvaćena";
-        case "rejected": return "Odbijena";
-        default: return status;
-    }
+function accountAvailableBalance(account) {
+    if (account?.available_balance != null) return Number(account.available_balance || 0);
+    if (account?.balance != null) return Number(account.balance || 0);
+    return 0;
 }
 
-function statusClass(status) {
-    switch (status) {
-        case "pending": return "otc-status--pending";
-        case "accepted": return "otc-status--accepted";
-        case "rejected": return "otc-status--rejected";
-        default: return "";
-    }
+function sanitizeDisplayName(value = "") {
+    return String(value)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
 }
 
 export default function OtcOffersPage() {
     const [offers, setOffers] = useState([]);
+    const [accounts, setAccounts] = useState([]);
+    const [selectedAccountId, setSelectedAccountId] = useState("");
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+    const [error, setError] = useState("");
     const [actionMsg, setActionMsg] = useState("");
     const [actionError, setActionError] = useState("");
-    const [counterModal, setCounterModal] = useState(null);
-    const [counterPrice, setCounterPrice] = useState("");
+    const [selectedOffer, setSelectedOffer] = useState(null);
+    const [creating, setCreating] = useState(false);
 
     useEffect(() => {
-        (async () => {
+        let cancelled = false;
+
+        async function load() {
             try {
-                const data = await listActiveOffers();
-                setOffers(Array.isArray(data) ? data : []);
+                setLoading(true);
+                const [holdings, accountList] = await Promise.all([
+                    listExternalPublicHoldings(),
+                    getAccounts(),
+                ]);
+                if (cancelled) return;
+
+                setOffers(Array.isArray(holdings?.items) ? holdings.items : []);
+                const normalizedAccounts = Array.isArray(accountList) ? accountList : [];
+                setAccounts(normalizedAccounts);
+
+                if (normalizedAccounts.length > 0) {
+                    const usd = normalizedAccounts.find((acc) =>
+                        String(accountCurrency(acc)).toUpperCase().includes("USD")
+                    );
+                    setSelectedAccountId(String((usd || normalizedAccounts[0]).id ?? ""));
+                }
+
+                setError("");
             } catch (e) {
-                setError(e.message || "Greška pri učitavanju ponuda.");
+                if (!cancelled) {
+                    setError(
+                        e?.response?.data?.message ||
+                            e.message ||
+                            "Greška pri učitavanju spoljnih OTC ponuda."
+                    );
+                }
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
-        })();
+        }
+
+        load();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
-    async function handleAccept(offerId) {
-        setActionMsg("");
-        setActionError("");
-        try {
-            await acceptOffer(offerId);
-            setOffers((prev) =>
-                prev.map((o) => o.id === offerId ? { ...o, status: "accepted" } : o)
-            );
-            setActionMsg("Ponuda je prihvaćena.");
-        } catch (e) {
-            setActionError(e.message || "Greška pri prihvatanju ponude.");
-        }
-    }
+    const selectedAccount = useMemo(
+        () => accounts.find((acc) => String(acc.id) === String(selectedAccountId)) || null,
+        [accounts, selectedAccountId]
+    );
 
-    async function handleReject(offerId) {
-        setActionMsg("");
-        setActionError("");
-        try {
-            await rejectOffer(offerId);
-            setOffers((prev) =>
-                prev.map((o) => o.id === offerId ? { ...o, status: "rejected" } : o)
-            );
-            setActionMsg("Ponuda je odbijena.");
-        } catch (e) {
-            setActionError(e.message || "Greška pri odbijanju ponude.");
+    async function handleCreateOffer(payload) {
+        if (!selectedOffer) return;
+        if (!selectedAccountId) {
+            throw new Error("Izaberite račun sa kog kupujete.");
         }
-    }
 
-    async function handleCounter() {
-        if (!counterModal) return;
-        const price = parseFloat(counterPrice);
-        if (!counterPrice || isNaN(price) || price <= 0) {
-            setActionError("Unesite ispravnu cenu za kontraponudu.");
-            return;
-        }
-        setActionMsg("");
-        setActionError("");
         try {
-            await counterOffer(counterModal.id, { price_per_unit: Math.round(price * 100) });
-            setCounterModal(null);
-            setCounterPrice("");
-            setActionMsg(`Kontraponuda za ${counterModal.ticker} je poslata.`);
+            setCreating(true);
+            setActionError("");
+            const result = await createExternalOtcOffer({
+                bankCode: selectedOffer.sellerBankPrefix,
+                sellerUserRef: selectedOffer.sellerId,
+                sellerDisplayName: sanitizeDisplayName(selectedOffer.sellerDisplayName || ""),
+                buyerAccountId: selectedAccountId,
+                securityTicker: selectedOffer.securityTicker,
+                securityType: "stock",
+                currency: selectedOffer.currency || "USD",
+                quantity: payload.amount,
+                pricePerUnit: String(payload.strikePrice),
+                premium: String(payload.premium),
+                settlementDate: payload.settlementDate,
+            });
+
+            setActionMsg(
+                `Spoljna OTC ponuda za ${selectedOffer.securityTicker || "hartiju"} je poslata.`
+            );
+            setSelectedOffer(null);
+            return result;
         } catch (e) {
-            setActionError(e.message || "Greška pri slanju kontraponude.");
+            const message =
+                e?.response?.data?.message ||
+                e.message ||
+                "Greška pri slanju spoljne OTC ponude.";
+            setActionError(message);
+            throw new Error(message);
+        } finally {
+            setCreating(false);
         }
     }
 
@@ -104,7 +139,29 @@ export default function OtcOffersPage() {
         <div className="otc-page">
             <Sidebar />
 
-            <h1 className="otc-title">Aktivne OTC ponude</h1>
+            <h1 className="otc-title">Spoljne OTC ponude</h1>
+
+            <div className="otc-banner" style={{ marginBottom: 16 }}>
+                <strong>Kupovni račun:</strong>
+                <select
+                    value={selectedAccountId}
+                    onChange={(e) => setSelectedAccountId(e.target.value)}
+                    style={{ marginLeft: 8 }}
+                >
+                    <option value="">-- Izaberite račun --</option>
+                            {accounts.map((acc) => (
+                                <option key={acc.id || acc.account_number} value={acc.id}>
+                                    {acc.account_number} {accountCurrency(acc) ? `(${accountCurrency(acc)})` : ""}
+                                </option>
+                            ))}
+                        </select>
+                {selectedAccount && (
+                    <span style={{ marginLeft: 12 }}>
+                        Raspoloživo:{" "}
+                        {fmt(accountAvailableBalance(selectedAccount) / 100, accountCurrency(selectedAccount))}
+                    </span>
+                )}
+            </div>
 
             {actionMsg && <div className="otc-banner otc-banner--ok">{actionMsg}</div>}
             {actionError && <div className="otc-banner otc-banner--error">{actionError}</div>}
@@ -117,100 +174,63 @@ export default function OtcOffersPage() {
                 <div className="otc-table-wrapper">
                     <table className="otc-table">
                         <thead>
-                        <tr>
-                            <th>Ticker</th>
-                            <th>Količina</th>
-                            <th>Cena po kom.</th>
-                            <th>Ukupno</th>
-                            <th>Prodavac</th>
-                            <th>Datum</th>
-                            <th>Status</th>
-                            <th>Akcije</th>
-                        </tr>
+                            <tr>
+                                <th>Ticker</th>
+                                <th>Količina</th>
+                                <th>Banka</th>
+                                <th>Prodavac</th>
+                                <th>Referentna cena</th>
+                                <th>Akcija</th>
+                            </tr>
                         </thead>
                         <tbody>
-                        {offers.length === 0 && (
-                            <tr>
-                                <td colSpan={8} className="otc-empty-cell">
-                                    Nema aktivnih ponuda.
-                                </td>
-                            </tr>
-                        )}
-                        {offers.map((o) => (
-                            <tr key={o.id}>
-                                <td className="otc-ticker">{o.ticker}</td>
-                                <td>{o.quantity}</td>
-                                <td>{fmt(o.price_per_unit, o.currency)}</td>
-                                <td>{fmt(o.total_price, o.currency)}</td>
-                                <td>{o.seller}</td>
-                                <td>{fmtDate(o.created_at)}</td>
-                                <td>
-                                        <span className={`otc-status ${statusClass(o.status)}`}>
-                                            {statusLabel(o.status)}
-                                        </span>
-                                </td>
-                                <td>
-                                    {o.status === "pending" && (
-                                        <div className="otc-actions">
-                                            <button
-                                                className="otc-btn otc-btn--accept"
-                                                onClick={() => handleAccept(o.id)}
-                                            >
-                                                Prihvati
-                                            </button>
-                                            <button
-                                                className="otc-btn otc-btn--reject"
-                                                onClick={() => handleReject(o.id)}
-                                            >
-                                                Odbij
-                                            </button>
-                                            <button
-                                                className="otc-btn otc-btn--counter"
-                                                onClick={() => {
-                                                    setCounterModal(o);
-                                                    setCounterPrice("");
-                                                }}
-                                            >
-                                                Kontraponuda
-                                            </button>
-                                        </div>
-                                    )}
-                                </td>
-                            </tr>
-                        ))}
+                            {offers.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="otc-empty-cell">
+                                        Nema dostupnih spoljnih OTC ponuda.
+                                    </td>
+                                </tr>
+                            )}
+                            {offers.map((offer) => (
+                                <tr
+                                    key={`${offer.sellerBankPrefix}-${offer.sellerId}-${offer.securityTicker}`}
+                                >
+                                    <td className="otc-ticker">{offer.securityTicker || "—"}</td>
+                                    <td>{offer.availableCount ?? "—"}</td>
+                                    <td>{offer.sellerBankPrefix || "—"}</td>
+                                    <td>{offer.sellerDisplayName || "—"}</td>
+                                    <td>{fmt(offer.currentPrice, offer.currency || "USD")}</td>
+                                    <td>
+                                        <button
+                                            className="otc-btn otc-btn--accept"
+                                            onClick={() => {
+                                                setActionError("");
+                                                setActionMsg("");
+                                                setSelectedOffer(offer);
+                                            }}
+                                        >
+                                            Napravi ponudu
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>
             )}
 
-            {counterModal && (
-                <div className="otc-overlay" onClick={() => setCounterModal(null)}>
-                    <div className="otc-modal" onClick={(e) => e.stopPropagation()}>
-                        <h2>Kontraponuda za {counterModal.ticker}</h2>
-                        <p className="otc-modal-hint">
-                            Originalna cena: {fmt(counterModal.price_per_unit, counterModal.currency)} po komadu.
-                            Unesite novu cenu:
-                        </p>
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Nova cena po komadu (RSD)"
-                            value={counterPrice}
-                            onChange={(e) => setCounterPrice(e.target.value)}
-                            className="otc-modal-input"
-                        />
-                        <div className="otc-modal-actions">
-                            <button className="otc-btn-secondary" onClick={() => setCounterModal(null)}>
-                                Otkaži
-                            </button>
-                            <button className="otc-btn-primary" onClick={handleCounter}>
-                                Pošalji
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <OTCTradingModal
+                open={Boolean(selectedOffer)}
+                stock={{
+                    ticker: selectedOffer?.securityTicker,
+                    seller: selectedOffer?.sellerDisplayName,
+                    currency: selectedOffer?.currency,
+                }}
+                loading={creating}
+                onClose={() => setSelectedOffer(null)}
+                onConfirm={handleCreateOffer}
+                error={actionError}
+            />
         </div>
     );
 }
