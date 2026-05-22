@@ -43,6 +43,7 @@ import InvestmentFundDetailPage from "../pages/InvestmentFundDetailPage.jsx";
 import OptionContractsPage from "../pages/OptionContractsPage.jsx";
 import FondoviPage from "../pages/FondoviPage.jsx";
 import OtcOffersPage from "../pages/OtcOffersPage.jsx";
+import OtcThreadsPage from "../pages/OtcThreadsPage.jsx";
 import CreateInvestmentFundPage from "../pages/CreateInvestmentFundPage.jsx";
 import ProfitActuariesPage from "../pages/ProfitActuariesPage.jsx";
 
@@ -108,6 +109,7 @@ export default function AppRouter() {
           <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
           <Route path="/exchange" element={<ProtectedRoute requiredRole="client"><ExchangePage /></ProtectedRoute>} />
           <Route path="/otc/offers" element={<ProtectedRoute><OtcOffersPage /></ProtectedRoute>} />
+          <Route path="/otc/threads" element={<ProtectedRoute><OtcThreadsPage /></ProtectedRoute>} />
           <Route path="/berza" element={<ProtectedRoute requiredRole="employee"><BerzaPage /></ProtectedRoute>} />
 
           <Route path="/loans" element={<ProtectedRoute requiredRole="client"><LoansPage /></ProtectedRoute>} />
