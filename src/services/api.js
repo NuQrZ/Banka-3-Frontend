@@ -4,9 +4,20 @@ import axios from "axios";
 // koje se izvršavaju tek posle što su svi moduli završili load (live bindings).
 import { clearAuthState, getIsLoggingOut } from "./AuthService.js";
 
-const baseURL = import.meta.env.VITE_API_URL
-  ? import.meta.env.VITE_API_URL
-  : "/api";
+function resolveApiBaseUrl() {
+  const runtimeBaseUrl = window.__APP_CONFIG__?.API_BASE_URL;
+  if (typeof runtimeBaseUrl === "string" && runtimeBaseUrl.trim() !== "") {
+    return runtimeBaseUrl.trim().replace(/\/+$/, "");
+  }
+
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.trim().replace(/\/+$/, "");
+  }
+
+  return "/api";
+}
+
+const baseURL = resolveApiBaseUrl();
 
 const api = axios.create({ baseURL });
 

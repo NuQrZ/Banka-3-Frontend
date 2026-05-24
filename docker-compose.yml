@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      APP_API_BASE_URL: ${APP_API_BASE_URL:-/api}
     ports:
       - "${FRONTEND_PORT:-3000}:80"
     networks: [banka]
